@@ -9,7 +9,13 @@ const { open } = require("sqlite");
 
 // *******************************
 // implementaion for auth using passport
-
+const accountsRouter = require("./routes/accountsRouter")
+const cookieParser = require("cookie-parser");
+const connection = require("./config/db_connection");
+const AnonUser = require("./models/User");
+const MongoStore = require("connect-mongo");
+const session = require("express-session");
+const passport = require("passport");
 // *******************************
 
 // probably storing messages in memory not good, as processes due to fork might mess up!!?
@@ -31,6 +37,7 @@ if (cluster.isPrimary) {
   console.log("Child process: ", process.pid);
 
   async function main() {
+    // ****************** DB IMPLEMENTATION FOR MESSAGES USING CHAT.DB
     // chat.db setup for database
     const db = await open({
       filename: "chat.db",
@@ -46,6 +53,8 @@ if (cluster.isPrimary) {
       )
     `);
 
+    // ****************** DB IMPLEMENTATION FOR MESSAGES USING CHAT.DB
+
     // server setup
     const app = express();
     const server = createServer(app);
@@ -57,6 +66,81 @@ if (cluster.isPrimary) {
       adapter: createAdapter(),
     }); // integrates socket.io with express HTTP server
 
+    // setup middlewares here for express via socket compatible // this is not even required!
+    // *************************************
+    // why do i even want to setup express middlewares on socket?, i can directly use them on app!
+    // socket_server.engine.use(express.json());
+    // socket_server.engine.use(express.urlencoded({ extended: false }));
+    app.use(express.json());
+    app.use(express.urlencoded({ extended: false }));
+    app.use(cookieParser());
+
+    //session setup
+    /**
+     * -------------- SESSION SETUP ----------------
+     */
+
+    // TODO
+    // gotta implement the session
+    // first set up the sessionStore
+    const sessionStore = MongoStore.create({
+      client: connection.getClient(),
+      collectionName: "sessions",
+    });
+    app.use(
+      session({
+        secret: process.env.SECRET,
+        resave: false,
+        saveUninitialized: true,
+        store: sessionStore,
+        cookie: {
+          maxAge: 1000 * 60 * 60 * 24, //24 hours age cookie
+        },
+      })
+    );
+
+    //passport setup
+    /**
+     * -------------- PASSPORT SETUP ----------------
+     */
+
+    require("./config/passport");
+    app.use(passport.initialize());
+    app.use(passport.session());
+
+    /////console.log("Process serving the index route request: ", process.pid);
+      return res.json({
+        msg: "Hey buddy we are in the system now!",
+      });
+    });
+
+      console.log(req.cookies); // this will give me about auth info
+      console.log(req.session);
+      // when a user is on a authenticated session
+      // passport attaches a passport: { user: user_id}
+      // to the req.session
+      next();
+    });
+    app.use("/accounts", accountsRouter);
+
+    // catch 404 and forward to error handler
+    app.use(function (req, res, next) {
+      next(createError(404));
+    });
+
+    // error handler
+    app.use(function (err, req, res, next) {
+      // set locals, only providing error in development
+      res.locals.message = err.message;
+      res.locals.error = req.app.get("env") === "development" ? err : {};
+
+      // render the error page
+      res.status(err.status || 500);
+      res.send({ msg: "error" });
+    });
+
+    // *************************************
+    // this below route will now be handled in indexRouter
     app.get("/", (req, res) => {
       console.log("Process serving the index route request: ", process.pid);
       return res.json({
