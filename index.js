@@ -9,7 +9,7 @@ const { open } = require("sqlite");
 
 // *******************************
 // implementaion for auth using passport
-const accountsRouter = require("./routes/accountsRouter")
+const accountsRouter = require("./routes/accountsRouter");
 const cookieParser = require("cookie-parser");
 const connection = require("./config/db_connection");
 const AnonUser = require("./models/User");
@@ -108,12 +108,8 @@ if (cluster.isPrimary) {
     app.use(passport.initialize());
     app.use(passport.session());
 
-    /////console.log("Process serving the index route request: ", process.pid);
-      return res.json({
-        msg: "Hey buddy we are in the system now!",
-      });
-    });
-
+    /////
+    app.use((req, res, next) => {
       console.log(req.cookies); // this will give me about auth info
       console.log(req.session);
       // when a user is on a authenticated session
