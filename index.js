@@ -7,6 +7,11 @@ const { createAdapter, setupPrimary } = require("@socket.io/cluster-adapter");
 const sqlite3 = require("sqlite3");
 const { open } = require("sqlite");
 
+// *******************************
+// implementaion for auth using passport
+
+// *******************************
+
 // probably storing messages in memory not good, as processes due to fork might mess up!!?
 // instead we can try db -> chat.db
 // let messages = [];
