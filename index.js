@@ -1,4 +1,5 @@
 const express = require("express");
+const cors = require("cors");
 const { createServer } = require("node:http");
 const { Server } = require("socket.io");
 const { availableParallelism } = require("os"); // this returns the number of cores available
@@ -65,6 +66,21 @@ if (cluster.isPrimary) {
       connectionStateRecovery: {},
       adapter: createAdapter(),
     }); // integrates socket.io with express HTTP server
+    // ************ CORS SETUP FOR APP *******
+    const allowlist = ["http://localhost:5173"];
+    const corsOptionsDelegate = function (req, callback) {
+      let corsOptions;
+      if (allowlist.indexOf(req.header("Origin")) !== -1) {
+        corsOptions = { origin: true, credentials: true }; // reflect (enable) the requested origin in the CORS response
+      } else {
+        corsOptions = { origin: false }; // disable CORS for this request
+      }
+      callback(null, corsOptions); // callback expects two parameters: error and options
+    };
+
+    app.use(cors(corsOptionsDelegate));
+
+    // ************ CORS SETUP FOR APP *******
 
     // setup middlewares here for express via socket compatible // this is not even required!
     // *************************************
@@ -119,6 +135,15 @@ if (cluster.isPrimary) {
     });
     app.use("/accounts", accountsRouter);
 
+    // this below route will now be handled in indexRouter
+    app.get("/", (req, res) => {
+      console.log("suar sama");
+      console.log("Process serving the index route request: ", process.pid);
+      return res.json({
+        msg: "Hey buddy we are in the system now!",
+      });
+    });
+
     // catch 404 and forward to error handler
     app.use(function (req, res, next) {
       next(createError(404));
@@ -136,13 +161,6 @@ if (cluster.isPrimary) {
     });
 
     // *************************************
-    // this below route will now be handled in indexRouter
-    app.get("/", (req, res) => {
-      console.log("Process serving the index route request: ", process.pid);
-      return res.json({
-        msg: "Hey buddy we are in the system now!",
-      });
-    });
 
     socket_server.on("connection", async (socket) => {
       console.log("client connected", socket.id);
